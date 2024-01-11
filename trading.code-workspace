@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../trading"
+		},
+		{
+			"name": "testing",
+			"path": "."
+		}
+	],
+	"settings": {
+		"debug.internalConsoleOptions": "neverOpen"
+	}
+}
