@@ -27,11 +27,7 @@ class Model():
         self.train_model()
         self.predictions()
     
-    def build_model(self, num_past_prices, embeddings_dim):
-        # Constants
-        max_len = 30
-        max_tokens = 1000
-
+    def build_model(self, num_past_prices, embeddings_dim, max_len=30, max_tokens=100):
         # Gather tf dataset to adapt TextVectorizer
         sample_historical_headlines = ["Hoo Hoo", "HOO", "WHOSE TOES", "HOO", "Hoo hoo hoo"] # replace with array of historical data
         dataset = tf.data.Dataset.from_tensor_slices(sample_historical_headlines)
@@ -184,7 +180,7 @@ class Model():
         # print(gains[-6:-1])
         # print(headlines)
         # printdata
-        prediction_batch = self.model.predict([np.array(headlines), np.array(gains[-5:-1])])
+        prediction_batch = self.model.predict([np.array([headlines], dtype=str), np.array([gains[-5:-1]])])
         return prediction_batch
 
 
