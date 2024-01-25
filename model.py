@@ -180,6 +180,8 @@ class Model():
         # print(gains[-6:-1])
         # print(headlines)
         # printdata
+        print(np.array([headlines]))
+        print(np.array([gains[-6:-1]]))
         prediction_batch = self.model.predict([np.array([headlines], dtype=str), np.array([gains[-6:-1]])])
         return prediction_batch
 
