@@ -90,37 +90,43 @@ class Model():
         start_date = end_date - dt.timedelta(days=200)
         data = self.get_data(STOCK_LIST,start_date,end_date)
         # print(data.values)
-        avg_data = np.convolve(data.values[:,0], np.ones(interval), mode="valid")/interval
+        # avg_data = np.array(data.values[:,0], np.ones(interval), mode="valid")/interval
+        while(len(data)%interval != 0):
+            data.drop(data.tail(1).index,inplace=True)
+        avg_data = np.array(data).reshape(-1, interval).mean(axis=1)
         articles = self.get_articles(start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
         for i in range(lookback, len(avg_data)):
-            gain_in.append(avg_data[i-lookback:i])
-            gain_out.append(avg_data[i])
+            gain_in.append(np.array(avg_data[i-lookback:i]))
+            gain_out.append(np.array(avg_data[i]))
             
             news_date = str(data.index[i]).split(" ")[0]
+        
             for s in STOCK_LIST:
                 for a in articles:
+                    # print(len_)
                     # if not a.get("datetime"):
                     #     continue
+                    # print(a.get("datetime"))
                     ts = int(a.get("datetime"))
                     date = dt.datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d')
+                    print(date)
                     if a.get("related") == s:
-                        print(a)
-                        news_in.append(a.get("headline"))
+                        news_in.append(np.array(a.get("headline")))
                         break
-            vol_out.append(data.iloc[i-lookback:i].var().values)
+            vol_out.append(np.array(data.iloc[i-lookback:i].var().values))
 
-        # print(news_in)
         return gain_in, news_in, gain_out, vol_out
     
     def train_model(self):
         gain_in, news_in, gain_out, vol_out = self.make_training_data()
-
+        print(news_in)
+        print(gain_in)
         # Train
         news_in = np.array(news_in, dtype=str) 
-        print(news_in.size)
-        # print(gain_in)
+        # print(news_in.size)
+        # print(gain_in.size)
         self.model.fit(
-            {"input_headlines": np.array(news_in), "input_gains": np.array(gain_in)},
+            {"input_headlines": news_in, "input_gains": np.array(gain_in)},
             {"gains": np.array(gain_out), "vars": np.array(vol_out)},
             epochs=2,
             batch_size=32,
@@ -156,6 +162,7 @@ class Model():
         return headlines
 
     def get_articles(self, start_date,end_date):
+        start_date = "2023-01-01"
         finnhub_client = finnhub.Client(api_key=FINN_KEY)
         articles = []
         for s in STOCK_LIST: 
@@ -164,9 +171,14 @@ class Model():
         return articles
     
     def predictions(self):
+        interval = 7
         headlines = self.get_headlines(dt.datetime.now().strftime('%Y-%m-%d'), dt.datetime.now().strftime('%Y-%m-%d'))
-        gains = self.get_data(STOCK_LIST, dt.datetime.now().strftime('%Y-%m-%d'), dt.datetime.now().strftime('%Y-%m-%d'))
-        prediction_batch = self.model.predict([headlines, gains])
+        data = self.get_data(STOCK_LIST, dt.datetime.now().strftime('%Y-%m-%d'), dt.datetime.now().strftime('%Y-%m-%d'))
+        gains = np.convolve(data.values[:,0], np.ones(interval), mode="valid")/interval
+        # print(gains[-6:-1])
+        # print(headlines)
+        # printdata
+        prediction_batch = self.model.predict([np.array(headlines), np.array(gains[-5:-1])])
         return prediction_batch
 
 
