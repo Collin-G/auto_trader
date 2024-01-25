@@ -119,7 +119,7 @@ class MonteCarlo():
 
     def get_weights(self, timeframe, sim_count):
         end_date = dt.datetime.now()
-        start_date = end_date - dt.timedelta(days=100)
+        start_date = end_date - dt.timedelta(days=50)
 
         log_returns, mean_returns, cov_returns = self.get_data(STOCK_LIST, start_date, end_date)
 
