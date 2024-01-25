@@ -29,7 +29,11 @@ class Model():
     
     def build_model(self, num_past_prices, embeddings_dim, max_len=30, max_tokens=100):
         # Gather tf dataset to adapt TextVectorizer
-        sample_historical_headlines = ["Hoo Hoo", "HOO", "WHOSE TOES", "HOO", "Hoo hoo hoo"] # replace with array of historical data
+        end_date = dt.datetime.now()
+        start_date = end_date - dt.timedelta(days=200)
+        articles = self.get_articles(start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
+        headlines = [a.get("headline") for a in articles[0:10]]
+        sample_historical_headlines = headlines # replace with array of historical data
         dataset = tf.data.Dataset.from_tensor_slices(sample_historical_headlines)
 
         """Total arch"""
@@ -92,9 +96,9 @@ class Model():
         avg_data = np.array(data).reshape(-1, interval).mean(axis=1)
         articles = self.get_articles(start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
         for i in range(lookback, len(avg_data)):
-            gain_in.append(np.array(avg_data[i-lookback:i-1]))
+            gain_in.append(avg_data[i-lookback:i-1].tolist())
             # print(avg_data[i])
-            gain_out.append(np.array(avg_data[i]))
+            gain_out.append([avg_data[i]])
             
             news_date = str(data.index[i]).split(" ")[0]
         
@@ -108,9 +112,9 @@ class Model():
                     date = dt.datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d')
                     # print(date)
                     if a.get("related") == s:
-                        news_in.append(np.array(a.get("headline")))
+                        news_in.append(a.get("headline"))
                         break
-            vol_out.append(np.array(data.iloc[i-lookback:i].var().values))
+            vol_out.append(data.iloc[i-lookback:i].var().values)
 
         return gain_in, news_in, gain_out, vol_out
     
@@ -119,7 +123,7 @@ class Model():
         print(news_in)
         print(gain_in)
         print(gain_out)
-        # print(vol_out)
+        print(vol_out)
         # Train
         news_in = np.array(news_in, dtype=str) 
         # print(news_in.size)
