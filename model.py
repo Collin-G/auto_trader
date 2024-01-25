@@ -89,6 +89,7 @@ class Model():
         end_date = dt.datetime.now()
         start_date = end_date - dt.timedelta(days=200)
         data = self.get_data(STOCK_LIST,start_date,end_date)
+        data = data.dropna()
         # print(data.values)
         # avg_data = np.array(data.values[:,0], np.ones(interval), mode="valid")/interval
         while(len(data)%interval != 0):
@@ -179,6 +180,7 @@ class Model():
         start_date = end_date - dt.timedelta(days=200)
         headlines = self.get_headlines(end_date.strftime('%Y-%m-%d'), dt.datetime.now().strftime('%Y-%m-%d'))
         data = self.get_data(STOCK_LIST, end_date.strftime('%Y-%m-%d'), start_date.strftime('%Y-%m-%d'))
+        
         # gains = np.convolve(data.values[:,0], np.ones(interval), mode="valid")/interval
         while(len(data)%interval != 0):
             data.drop(data.tail(1).index,inplace=True)
@@ -187,8 +189,6 @@ class Model():
         # print(gains[-6:-1])
         # print(headlines)
         # printdata
-        print(np.array([headlines]))
-        print(np.array([gains[-6:-1]]))
         prediction_batch = self.model.predict([np.array([headlines], dtype=str), np.array([gains[-6:-1]])])
         print(prediction_batch)
         return prediction_batch
