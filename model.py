@@ -45,7 +45,7 @@ class Model():
         embedded_headlines = lstm_1 # More to compe perhaps
 
         # Stock Gain Encoder
-        input_gains = Input(shape=(num_past_prices), name="input_gains")
+        input_gains = Input(shape=(num_past_prices  ), name="input_gains")
         inp_reshaped = Reshape((num_past_prices, 1))(input_gains)
         #g_lstm_1 = ConvLSTM1D(filters=32, kernel_size=5, padding='same')(inp_reshaped) TODO
         g_lstm_1 = LSTM(units=64, return_sequences=True)(inp_reshaped)
@@ -81,7 +81,7 @@ class Model():
         vol_out = []
         gain_out = []
         interval = 7
-        lookback = self.num_past_prices
+        lookback = self.num_past_prices+1
         end_date = dt.datetime.now()
         start_date = end_date - dt.timedelta(days=200)
         data = self.get_data(STOCK_LIST,start_date,end_date)
@@ -92,7 +92,8 @@ class Model():
         avg_data = np.array(data).reshape(-1, interval).mean(axis=1)
         articles = self.get_articles(start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
         for i in range(lookback, len(avg_data)):
-            gain_in.append(np.array(avg_data[i-lookback:i]))
+            gain_in.append(np.array(avg_data[i-lookback:i-1]))
+            # print(avg_data[i])
             gain_out.append(np.array(avg_data[i]))
             
             news_date = str(data.index[i]).split(" ")[0]
@@ -105,7 +106,7 @@ class Model():
                     # print(a.get("datetime"))
                     ts = int(a.get("datetime"))
                     date = dt.datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d')
-                    print(date)
+                    # print(date)
                     if a.get("related") == s:
                         news_in.append(np.array(a.get("headline")))
                         break
@@ -117,6 +118,8 @@ class Model():
         gain_in, news_in, gain_out, vol_out = self.make_training_data()
         print(news_in)
         print(gain_in)
+        print(gain_out)
+        # print(vol_out)
         # Train
         news_in = np.array(news_in, dtype=str) 
         # print(news_in.size)
@@ -183,6 +186,7 @@ class Model():
         print(np.array([headlines]))
         print(np.array([gains[-6:-1]]))
         prediction_batch = self.model.predict([np.array([headlines], dtype=str), np.array([gains[-6:-1]])])
+        print(prediction_batch)
         return prediction_batch
 
 
