@@ -172,9 +172,15 @@ class Model():
     
     def predictions(self):
         interval = 7
-        headlines = self.get_headlines(dt.datetime.now().strftime('%Y-%m-%d'), dt.datetime.now().strftime('%Y-%m-%d'))
-        data = self.get_data(STOCK_LIST, dt.datetime.now().strftime('%Y-%m-%d'), dt.datetime.now().strftime('%Y-%m-%d'))
-        gains = np.convolve(data.values[:,0], np.ones(interval), mode="valid")/interval
+        end_date = dt.datetime.now()
+        start_date = end_date - dt.timedelta(days=200)
+        headlines = self.get_headlines(end_date.strftime('%Y-%m-%d'), dt.datetime.now().strftime('%Y-%m-%d'))
+        data = self.get_data(STOCK_LIST, end_date.strftime('%Y-%m-%d'), start_date.strftime('%Y-%m-%d'))
+        # gains = np.convolve(data.values[:,0], np.ones(interval), mode="valid")/interval
+        while(len(data)%interval != 0):
+            data.drop(data.tail(1).index,inplace=True)
+        gains = np.array(data).reshape(-1, interval).mean(axis=1)
+        
         # print(gains[-6:-1])
         # print(headlines)
         # printdata
