@@ -23,7 +23,6 @@ class Model():
     def __init__(self, num_past_prices, embeddings_dim):
         self.num_past_prices = num_past_prices
         self.embeddings_dim = embeddings_dim
-        self.headlines = self.get_headlines()
         self.model = self.build_model(num_past_prices,embeddings_dim)
         self.train_model()
         self.predi
@@ -86,20 +85,28 @@ class Model():
         vol_out = []
         gain_out = []
         interval = 7
-        lookback = 5
+        lookback = self.num_past_prices
         end_date = dt.datetime.now()
         start_date = end_date - dt.timedelta(days=200)
-        data = self.get_data(start_date,end_date)
-        avg_data = np.convolve(data.values[:,0], np.ones(lookback), mode="valid")/lookback
-
-        for i in range(interval, len(avg_data)):
-            gain_in.append(avg_data[i+1-interval:i-1])
+        data = self.get_data(STOCK_LIST,start_date,end_date)
+        # print(data.values)
+        avg_data = np.convolve(data.values[:,0], np.ones(interval), mode="valid")/interval
+        articles = self.get_articles(start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
+        for i in range(lookback, len(avg_data)):
+            gain_in.append(avg_data[i-lookback:i])
             gain_out.append(avg_data[i])
             
-            news_date = data.index[i].split(" ")[0]
-            headline = self.get_headlines(news_date,news_date)
-            news_in.append(headline)
-            vol_out.append(data.var().values)
+            news_date = str(data.index[i]).split(" ")[0]
+            for s in STOCK_LIST:
+                for a in articles:
+                    if not a.get("datetime"):
+                        continue
+                    ts = int(a.get("datetime"))
+                    date = dt.datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d')
+                    if a.get("related") == s and date == news_date:
+                        news_in.append(a.get("headline"))
+                        break
+            vol_out.append(data.iloc[i-lookback:i].var().values)
 
 
         return gain_in, news_in, gain_out, vol_out
@@ -109,9 +116,11 @@ class Model():
 
         # Train
         news_in = np.array(news_in, dtype=str) 
+        print(news_in.size)
+        # print(gain_in)
         self.model.fit(
-            {"input_headlines": news_in, "input_gains": gain_in},
-            {"gains": gain_out, "vars": vol_out},
+            {"input_headlines": np.array(news_in), "input_gains": np.array(gain_in)},
+            {"gains": np.array(gain_out), "vars": np.array(vol_out)},
             epochs=2,
             batch_size=32,
         )
@@ -134,10 +143,7 @@ class Model():
         stock_data = stock_data.groupby(['symbol', 'timestamp']).mean().unstack(level=0)
         open_prices = stock_data["open"]
         log_returns = np.log(open_prices.pct_change()+1)
-        # print(log_returns)
-        mean_of_returns = log_returns.mean()
-        cov_of_returns = log_returns.cov()
-        return log_returns , mean_of_returns, cov_of_returns
+        return log_returns
     
     def get_headlines(self, start_date,end_date):
         finnhub_client = finnhub.Client(api_key=FINN_KEY)
@@ -145,12 +151,21 @@ class Model():
         # start_date = end_date - dt.timedelta(days=20)
         headlines = []
         for s in STOCK_LIST: 
-            headlines.append(finnhub_client.company_news(s, _from=start_date.strftime("%Y-%m-%d"), to=end_date.strftime("%Y-%m-%d"))[0].get("headline"))
+            headlines.append(finnhub_client.company_news(s, _from=start_date, to=end_date)[0].get("headline"))
         return headlines
+
+    def get_articles(self, start_date,end_date):
+        finnhub_client = finnhub.Client(api_key=FINN_KEY)
+        articles = []
+        for s in STOCK_LIST: 
+            articles.extend(finnhub_client.company_news(s, _from=start_date, to=end_date))
+        # print(articles)
+        return articles
     
     def predictions(self):
         headlines = self.get_headlines(dt.datetime.now(), dt.datetime.now())
         gains = self.get_data(STOCK_LIST, dt.datetime.now(), dt.datetime.now())
         prediction_batch = self.model.predict([headlines, gains])
+        return prediction_batch
 
 

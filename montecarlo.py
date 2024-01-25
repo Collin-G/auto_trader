@@ -12,6 +12,8 @@ import logging
 from alpaca.data import StockHistoricalDataClient, TimeFrame
 from alpaca.data.requests import StockQuotesRequest, StockBarsRequest
 
+from model import Model
+
 class MonteCarlo():
     def __init__(self, api):
         self.api = api
@@ -123,6 +125,10 @@ class MonteCarlo():
 
         log_returns, mean_returns, cov_returns = self.get_data(STOCK_LIST, start_date, end_date)
 
+        model = Model(5,1)
+        output = model.predictions()
+        mean_returns = output.get("gains").flatten()
+
         weights = np.ones(len(mean_returns))
         weights = weights/np.sum(weights)
 
@@ -150,3 +156,5 @@ class MonteCarlo():
         dataset = dataset[~mask]
 
         return dataset
+
+MonteCarlo(API)
