@@ -25,7 +25,7 @@ class Model():
         self.embeddings_dim = embeddings_dim
         self.model = self.build_model(num_past_prices,embeddings_dim)
         self.train_model()
-        self.predi
+        self.predictions()
     
     def build_model(self, num_past_prices, embeddings_dim):
         # Constants
@@ -99,16 +99,17 @@ class Model():
             news_date = str(data.index[i]).split(" ")[0]
             for s in STOCK_LIST:
                 for a in articles:
-                    if not a.get("datetime"):
-                        continue
+                    # if not a.get("datetime"):
+                    #     continue
                     ts = int(a.get("datetime"))
                     date = dt.datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d')
-                    if a.get("related") == s and date == news_date:
+                    if a.get("related") == s:
+                        print(a)
                         news_in.append(a.get("headline"))
                         break
             vol_out.append(data.iloc[i-lookback:i].var().values)
 
-
+        # print(news_in)
         return gain_in, news_in, gain_out, vol_out
     
     def train_model(self):
@@ -163,8 +164,8 @@ class Model():
         return articles
     
     def predictions(self):
-        headlines = self.get_headlines(dt.datetime.now(), dt.datetime.now())
-        gains = self.get_data(STOCK_LIST, dt.datetime.now(), dt.datetime.now())
+        headlines = self.get_headlines(dt.datetime.now().strftime('%Y-%m-%d'), dt.datetime.now().strftime('%Y-%m-%d'))
+        gains = self.get_data(STOCK_LIST, dt.datetime.now().strftime('%Y-%m-%d'), dt.datetime.now().strftime('%Y-%m-%d'))
         prediction_batch = self.model.predict([headlines, gains])
         return prediction_batch
 
