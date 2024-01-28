@@ -62,10 +62,12 @@ class Model():
 
         # Concat with headlines embeddings
         concatted_gains_embeds = concatenate([embedded_headlines, g_dense_2])
+        post_concat_1 = Dense(units=12, activation='tanh')(concatted_gains_embeds)
+        post_concat_2 = Dense(units = 1, activation='sigmoid')(post_concat_1)
 
         # output dense layers
-        out_dense_1 = Dense(units = 1, name="gains")(concatted_gains_embeds)
-        out_dense_2 = Dense(units = 1, name="vars")(concatted_gains_embeds)
+        out_dense_1 = Dense(units = 1, name="gains")(post_concat_1)
+        out_dense_2 = Dense(units = 1, name="vars")(post_concat_2)#, activation='relu')(post_concat_2)#(concatted_gains_embeds)
 
         model = keras.Model(
             inputs = [input_headlines, input_gains], 
@@ -100,7 +102,7 @@ class Model():
         avg_data = np.array(np.array(data[len(data)%interval:])).reshape(len(data)//interval,7,-1).mean(axis=1)
         # print(avg_data)
         # gain_in = avg_data.transpose()
-        
+        print(avg_data)
         articles = self.get_articles(start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
         for i in range(lookback, len(avg_data)):
             gain_in.append(avg_data[i-lookback:i-1,:].tolist())
@@ -128,8 +130,8 @@ class Model():
         
         # print(gain_out)
         # print(vol_out)
+        # print(np.array(gain_in))
         print(np.array(gain_in))
-        print(np.array(gain_out))
         return gain_in, news_in, gain_out, vol_out
     
     def train_model(self):
@@ -178,7 +180,7 @@ class Model():
         return headlines
 
     def get_articles(self, start_date,end_date):
-        start_date = "2023-01-01"
+        # start_date = "2023-01-01"
         finnhub_client = finnhub.Client(api_key=FINN_KEY)
         
         articles = finnhub_client.company_news(self.stock, _from=start_date, to=end_date)
@@ -189,8 +191,8 @@ class Model():
         interval = 7
         end_date = dt.datetime.now()
         start_date = end_date - dt.timedelta(days=200)
-        headlines = self.get_headlines(end_date.strftime('%Y-%m-%d'), dt.datetime.now().strftime('%Y-%m-%d'))
-        data = self.get_data(self.stock, end_date.strftime('%Y-%m-%d'), start_date.strftime('%Y-%m-%d'))
+        headlines = self.get_headlines(start_date.strftime('%Y-%m-%d'), dt.datetime.now().strftime('%Y-%m-%d'))
+        data = self.get_data(self.stock, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))
         
         # gains = np.convolve(data.values[:,0], np.ones(interval), mode="valid")/interval
         while(len(data)%interval != 0):
