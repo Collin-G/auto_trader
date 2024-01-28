@@ -20,8 +20,9 @@ from alpaca.data import StockHistoricalDataClient, TimeFrame
 from alpaca.data.requests import StockQuotesRequest, StockBarsRequest
 
 class Model():
-    def __init__(self, num_past_prices, embeddings_dim):
+    def __init__(self, num_past_prices, embeddings_dim,stock):
         self.num_past_prices = num_past_prices
+        self.stock = stock
         self.embeddings_dim = embeddings_dim
         self.model = self.build_model(num_past_prices,embeddings_dim)
         self.train_model()
@@ -88,43 +89,55 @@ class Model():
         lookback = self.num_past_prices+1
         end_date = dt.datetime.now()
         start_date = end_date - dt.timedelta(days=200)
-        data = self.get_data(STOCK_LIST,start_date,end_date)
+        data = self.get_data(self.stock,start_date,end_date)
         data = data.dropna()
         # print(data.values)
         # avg_data = np.array(data.values[:,0], np.ones(interval), mode="valid")/interval
         while(len(data)%interval != 0):
             data.drop(data.tail(1).index,inplace=True)
-        avg_data = np.array(data).reshape(-1, interval).mean(axis=1)
+        # print(np.array(data).reshape(-1,2,interval))
+        # avg_data = np.array(np.array(data[len(data)%interval:])).reshape(-1,len(STOCK_LIST),interval).mean(axis=2)
+        avg_data = np.array(np.array(data[len(data)%interval:])).reshape(len(data)//interval,7,-1).mean(axis=1)
+        # print(avg_data)
+        # gain_in = avg_data.transpose()
+        
         articles = self.get_articles(start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
         for i in range(lookback, len(avg_data)):
-            gain_in.append(avg_data[i-lookback:i-1].tolist())
+            gain_in.append(avg_data[i-lookback:i-1,:].tolist())
             # print(avg_data[i])
-            gain_out.append([avg_data[i]])
+            # print(np.array(avg_data[i]).reshape(-1,1).tolist())
+            gain_out.append(np.array(avg_data[i]).reshape(-1,1).tolist())
             
             news_date = str(data.index[i]).split(" ")[0]
-        
-            for s in STOCK_LIST:
-                for a in articles:
-                    # print(len_)
-                    # if not a.get("datetime"):
-                    #     continue
-                    # print(a.get("datetime"))
-                    ts = int(a.get("datetime"))
-                    date = dt.datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d')
-                    # print(date)
-                    if a.get("related") == s:
-                        news_in.append(a.get("headline"))
-                        break
+            temp = []
+            
+                
+            for a in articles:
+                # print(len_)
+                # if not a.get("datetime"):
+                #     continue
+                # print(a.get("datetime"))
+                ts = int(a.get("datetime"))
+                date = dt.datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d')
+                # print(date)
+                if a.get("related") == self.stock:
+                    temp.append(a.get("headline"))
+                    break
+            news_in.append(temp)
             vol_out.append(data.iloc[i-lookback:i].var().values)
-
+        
+        # print(gain_out)
+        # print(vol_out)
+        print(np.array(gain_in))
+        print(np.array(gain_out))
         return gain_in, news_in, gain_out, vol_out
     
     def train_model(self):
         gain_in, news_in, gain_out, vol_out = self.make_training_data()
-        print(news_in)
-        print(gain_in)
-        print(gain_out)
-        print(vol_out)
+        # print(news_in)
+        # print(gain_in)
+        # print(gain_out)
+        # print(vol_out)
         # Train
         news_in = np.array(news_in, dtype=str) 
         # print(news_in.size)
@@ -138,7 +151,7 @@ class Model():
     
     
     def get_data(self, stocks, start_date, end_date):
-        stocks = STOCK_LIST
+        
         end_date = dt.datetime.now()
         start_date = end_date - dt.timedelta(days=200)
         data_client = StockHistoricalDataClient(KEY, SECRET)
@@ -160,17 +173,15 @@ class Model():
         finnhub_client = finnhub.Client(api_key=FINN_KEY)
         # end_date = dt.datetime.now()
         # start_date = end_date - dt.timedelta(days=20)
-        headlines = []
-        for s in STOCK_LIST: 
-            headlines.append(finnhub_client.company_news(s, _from=start_date, to=end_date)[0].get("headline"))
+        
+        headlines = finnhub_client.company_news(self.stock, _from=start_date, to=end_date)[0].get("headline")
         return headlines
 
     def get_articles(self, start_date,end_date):
         start_date = "2023-01-01"
         finnhub_client = finnhub.Client(api_key=FINN_KEY)
-        articles = []
-        for s in STOCK_LIST: 
-            articles.extend(finnhub_client.company_news(s, _from=start_date, to=end_date))
+        
+        articles = finnhub_client.company_news(self.stock, _from=start_date, to=end_date)
         # print(articles)
         return articles
     
@@ -179,7 +190,7 @@ class Model():
         end_date = dt.datetime.now()
         start_date = end_date - dt.timedelta(days=200)
         headlines = self.get_headlines(end_date.strftime('%Y-%m-%d'), dt.datetime.now().strftime('%Y-%m-%d'))
-        data = self.get_data(STOCK_LIST, end_date.strftime('%Y-%m-%d'), start_date.strftime('%Y-%m-%d'))
+        data = self.get_data(self.stock, end_date.strftime('%Y-%m-%d'), start_date.strftime('%Y-%m-%d'))
         
         # gains = np.convolve(data.values[:,0], np.ones(interval), mode="valid")/interval
         while(len(data)%interval != 0):

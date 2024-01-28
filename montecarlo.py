@@ -66,6 +66,8 @@ class MonteCarlo():
         return np.sqrt(variance)
     
     def expected_mc_returns_reparametrized(self,weights, mean_returns, cov_mat, timeframe=30, sim_count=10000, Zs=None):
+        print("here")
+        print(mean_returns)
         mean_mat = np.full(shape =(timeframe, len(weights)), fill_value=mean_returns)
         mean_mat = mean_mat.T
 
@@ -106,13 +108,16 @@ class MonteCarlo():
 
         return np.array(pegs), np.array(insiders), np.array(profits) 
     
-    def get_sharpe_reparametrized(self,weights, log_returns,cov_mat, risk_free_rate, timeframe=30, sim_count=10000, Zs=None):
-        portfolio_value = np.dot(log_returns.mean(), weights)
+    def get_sharpe_reparametrized(self, mean_returns, weights, log_returns,cov_mat, risk_free_rate, timeframe=30, sim_count=10000, Zs=None):
+        print("hi", mean_returns)
+
+        portfolio_value = np.dot(mean_returns, weights)
         return (self.expected_mc_returns_reparametrized(weights, portfolio_value, cov_mat, timeframe=timeframe, sim_count=sim_count, Zs=Zs)- (1+risk_free_rate/(365/timeframe)))/self.portfolio_std(weights,cov_mat)
     
 
-    def get_confidence(self, weights, log_returns, cov_mat, risk_free_rate, insiders, peg,profit, timeframe=30, sim_count=10000, Zs=None):
-        sharpe = self.get_sharpe_reparametrized(weights, log_returns,cov_mat, risk_free_rate, timeframe, sim_count, Zs)
+    def get_confidence(self, mean_returns, weights, log_returns, cov_mat, risk_free_rate, insiders, peg,profit, timeframe=30, sim_count=10000, Zs=None):
+        mean = mean_returns
+        sharpe = self.get_sharpe_reparametrized(weights, mean,log_returns,cov_mat, risk_free_rate, timeframe, sim_count, Zs)
         # peg = np.dot(peg, weights)
         # insiders = np.dot(insiders, weights)
         # profit = np.dot(profit, weights)
@@ -124,10 +129,12 @@ class MonteCarlo():
         start_date = end_date - dt.timedelta(days=50)
 
         log_returns, mean_returns, cov_returns = self.get_data(STOCK_LIST, start_date, end_date)
-
-        model = Model(5,1)
-        output = model.predictions()
-        mean_returns = output.get("gains").flatten()
+        means = []
+        for s in STOCK_LIST:
+            model = Model(5,1,s)
+            output = model.predictions()
+            mean = np.array(output.get("gains").flatten())
+            means.append(mean[0])
 
         weights = np.ones(len(mean_returns))
         weights = weights/np.sum(weights)
@@ -145,7 +152,7 @@ class MonteCarlo():
 
         # tickers = self.get_tickers(STOCK_LIST)
         # peg, insiders, profit = self.get_key_stats(tickers)
-        optimized_weights_reparamed = optimize.minimize(self.get_confidence, weights, args=(log_returns,cov_returns, RRF, insiders, peg, profit,timeframe, sim_count, Zs), method = "SLSQP", constraints=constraints, bounds=bounds)
+        optimized_weights_reparamed = optimize.minimize(self.get_confidence, weights, args=(means, log_returns,cov_returns, RRF, insiders, peg, profit,timeframe, sim_count, Zs), method = "SLSQP", constraints=constraints, bounds=bounds)
         weights  = np.array(optimized_weights_reparamed["x"])
        
         rounded =  np.around(weights, 2)
@@ -154,7 +161,8 @@ class MonteCarlo():
         dataset = pd.DataFrame({'weights': rounded, "prices": single_prices}, columns=['weights', "prices"])
         mask = dataset["weights"] == 0
         dataset = dataset[~mask]
-
+        print("done")
+        print(dataset)
         return dataset
 
-# MonteCarlo(API)
+MonteCarlo(API)
