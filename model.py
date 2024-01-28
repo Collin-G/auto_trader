@@ -61,10 +61,11 @@ class Model():
 
         # Concat with headlines embeddings
         concatted_gains_embeds = concatenate([embedded_headlines, g_dense_2])
+        post_concat_1 = Dense(units=12, activation='tanh')(concatted_gains_embeds)
 
         # output dense layers
         out_dense_1 = Dense(units = 1, name="gains")(concatted_gains_embeds)
-        out_dense_2 = Dense(units = 1, name="vars")(concatted_gains_embeds)
+        out_dense_2 = Dense(units = 1, name="vars", activation='sigmoid')(concatted_gains_embeds)
 
         model = keras.Model(
             inputs = [input_headlines, input_gains], 
