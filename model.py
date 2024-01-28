@@ -17,7 +17,8 @@ from consts import *
 
 import finnhub 
 from alpaca.data import StockHistoricalDataClient, TimeFrame
-from alpaca.data.requests import StockQuotesRequest, StockBarsRequest
+from alpaca.data.requests import StockQuotesRequest, StockBarsRequest, NewsRequest
+from alpaca.data.historical.news  import NewsClient
 
 class Model():
     def __init__(self, num_past_prices, embeddings_dim,stock):
@@ -67,7 +68,7 @@ class Model():
 
         # output dense layers
         out_dense_1 = Dense(units = 1, name="gains")(post_concat_1)
-        out_dense_2 = Dense(units = 1, name="vars")(post_concat_2)#, activation='relu')(post_concat_2)#(concatted_gains_embeds)
+        out_dense_2 = Dense(units = 1, name="vars", activation='relu')(post_concat_2)#, activation='relu')(post_concat_2)#(concatted_gains_embeds)
 
         model = keras.Model(
             inputs = [input_headlines, input_gains], 
@@ -80,6 +81,7 @@ class Model():
                 #         "vars":
                 #     })
         return model
+
 
     
     def make_training_data(self):
@@ -97,41 +99,30 @@ class Model():
         # avg_data = np.array(data.values[:,0], np.ones(interval), mode="valid")/interval
         while(len(data)%interval != 0):
             data.drop(data.tail(1).index,inplace=True)
+        # print(d)
         # print(np.array(data).reshape(-1,2,interval))
         # avg_data = np.array(np.array(data[len(data)%interval:])).reshape(-1,len(STOCK_LIST),interval).mean(axis=2)
         avg_data = np.array(np.array(data[len(data)%interval:])).reshape(len(data)//interval,7,-1).mean(axis=1)
         # print(avg_data)
         # gain_in = avg_data.transpose()
-        print(avg_data)
-        articles = self.get_articles(start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
+        # articles = self.get_articles(start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
+        print(len(data))
+        print(len(avg_data))
         for i in range(lookback, len(avg_data)):
             gain_in.append(avg_data[i-lookback:i-1,:].tolist())
             # print(avg_data[i])
             # print(np.array(avg_data[i]).reshape(-1,1).tolist())
             gain_out.append(np.array(avg_data[i]).reshape(-1,1).tolist())
             
-            news_date = str(data.index[i]).split(" ")[0]
-            temp = []
-            
-                
-            for a in articles:
-                # print(len_)
-                # if not a.get("datetime"):
-                #     continue
-                # print(a.get("datetime"))
-                ts = int(a.get("datetime"))
-                date = dt.datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d')
-                # print(date)
-                if a.get("related") == self.stock:
-                    temp.append(a.get("headline"))
-                    break
-            news_in.append(temp)
-            vol_out.append(data.iloc[i-lookback:i].var().values)
+            news_date = str(data.index[i*interval]).split(" ")[0]
+            news_date = dt.datetime.strptime(news_date,"%Y-%m-%d")
+            headline = self.get_headlines(start_date=news_date-dt.timedelta(days=1) ,end_date= news_date)
+            news_in.append(headline)
+            vol_out.append(np.exp(data.iloc[i-lookback:i]).var().values)
         
         # print(gain_out)
         # print(vol_out)
         # print(np.array(gain_in))
-        print(np.array(gain_in))
         return gain_in, news_in, gain_out, vol_out
     
     def train_model(self):
@@ -172,14 +163,29 @@ class Model():
         return log_returns
     
     def get_headlines(self, start_date,end_date):
-        finnhub_client = finnhub.Client(api_key=FINN_KEY)
-        # end_date = dt.datetime.now()
-        # start_date = end_date - dt.timedelta(days=20)
-        
-        headlines = finnhub_client.company_news(self.stock, _from=start_date, to=end_date)[0].get("headline")
-        return headlines
+        try:
+            request_params = NewsRequest(
+                symbols = self.stock,
+                start = start_date,
+                end = end_date
+                
+            )
+            query = NEWS_API.get_news(request_params=request_params)
+            headline = query.news[0].headline
+        except:
+            request_params = NewsRequest(
+                start = start_date,
+                end = end_date
+   
+            )
+            query = NEWS_API.get_news(request_params=request_params)
+            headline = query.news[0].headline
+
+        return headline
 
     def get_articles(self, start_date,end_date):
+       
+       
         # start_date = "2023-01-01"
         finnhub_client = finnhub.Client(api_key=FINN_KEY)
         
@@ -191,7 +197,7 @@ class Model():
         interval = 7
         end_date = dt.datetime.now()
         start_date = end_date - dt.timedelta(days=200)
-        headlines = self.get_headlines(start_date.strftime('%Y-%m-%d'), dt.datetime.now().strftime('%Y-%m-%d'))
+        headlines = self.get_headlines(end_date - dt.timedelta(days=1), end_date)
         data = self.get_data(self.stock, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))
         
         # gains = np.convolve(data.values[:,0], np.ones(interval), mode="valid")/interval
