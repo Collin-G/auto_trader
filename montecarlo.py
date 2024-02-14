@@ -13,29 +13,33 @@ from alpaca.data import StockHistoricalDataClient, TimeFrame
 from alpaca.data.requests import StockQuotesRequest, StockBarsRequest
 
 class MonteCarlo():
-    def __init__(self, api):
+    def __init__(self, api, start_date, end_date):
+        self.start_date = start_date
+        self.end_date = end_date
         self.api = api
         self.stocks = STOCK_LIST
-        self.buys = self.get_weights(7,10000)
+        self.buys = self.get_weights(7,5000)
         # print(self.buys)
     
 
     def get_data(self, stocks, start_date, end_date):
     
-        end_date = dt.datetime.now()
-        start_date = end_date - dt.timedelta(days=400)
+        # end_date = dt.datetime.now()
+        # start_date = end_date - dt.timedelta(days=400)
         data_client = StockHistoricalDataClient(KEY, SECRET)
 
         request_params = StockBarsRequest(
             symbol_or_symbols=stocks,
             timeframe=TimeFrame.Day,
-            start=start_date
+            start=start_date,
+            end=end_date
             )
 
         bars_df = data_client.get_stock_bars(request_params).df.tz_convert('America/New_York', level=1)
         stock_data = pd.DataFrame(bars_df)
         stock_data = stock_data.groupby(['symbol', 'timestamp']).mean().unstack(level=0)
         open_prices = stock_data["open"]
+        # print(np.dot(open_prices.iloc[0].tolist(), np.ones(len(open_prices.iloc[0].tolist()))))
         log_returns = np.log(open_prices.pct_change()+1)
         # print(log_returns)
         mean_of_returns = log_returns.mean()
@@ -118,8 +122,10 @@ class MonteCarlo():
         # return -(sharpe*peg*insiders*profit)
 
     def get_weights(self, timeframe, sim_count):
-        end_date = dt.datetime.now()
-        start_date = end_date - dt.timedelta(days=100)
+        # end_date = dt.datetime.now()
+        # start_date = end_date - dt.timedelta(days=100)
+        end_date = self.end_date
+        start_date = self.start_date
 
         log_returns, mean_returns, cov_returns = self.get_data(STOCK_LIST, start_date, end_date)
 
@@ -148,5 +154,37 @@ class MonteCarlo():
         dataset = pd.DataFrame({'weights': rounded, "prices": single_prices}, columns=['weights', "prices"])
         mask = dataset["weights"] == 0
         dataset = dataset[~mask]
-
+        print(dataset)
         return dataset
+
+
+# weeks = 200
+# initial_date = dt.datetime.now()- dt.timedelta(weeks=weeks)
+# # MC = MonteCarlo(API, initial_date, dt.datetime.now())
+# date = initial_date
+# total = 0
+# for i in range(weeks):
+#     MC = MonteCarlo(API, date, date + dt.timedelta(weeks=1))
+#     data_client = StockHistoricalDataClient(KEY, SECRET)
+
+#     request_params = StockBarsRequest(
+#         symbol_or_symbols=MC.buys.index.values.tolist(),
+#         timeframe=TimeFrame.Day,
+#         start=date,
+#         end = date + dt.timedelta(weeks=2)
+
+#         )
+    
+#     bars_df = data_client.get_stock_bars(request_params).df.tz_convert('America/New_York', level=1)
+#     stock_data = pd.DataFrame(bars_df)
+#     stock_data = stock_data.groupby(['symbol', 'timestamp']).mean().unstack(level=0)
+#     open_prices = stock_data["open"]
+
+#     first = np.dot(open_prices.iloc[0].tolist(), MC.buys["weights"].tolist())
+#     last = np.dot(open_prices.iloc[-1].tolist(), MC.buys["weights"].tolist())
+
+#     gain = last/first
+#     total += gain
+#     date += dt.timedelta(weeks=1)
+#     print(total/i)
+    
