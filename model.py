@@ -102,7 +102,7 @@ class Model():
         # print(d)
         # print(np.array(data).reshape(-1,2,interval))
         # avg_data = np.array(np.array(data[len(data)%interval:])).reshape(-1,len(STOCK_LIST),interval).mean(axis=2)
-        avg_data = np.array(np.array(data[len(data)%interval:])).reshape(len(data)//interval,7,-1).mean(axis=1)
+        avg_data = np.array(np.array(data[len(data)%interval:])).reshape(len(data)//interval,interval,-1).mean(axis=1)
         # print(avg_data)
         # gain_in = avg_data.transpose()
         # articles = self.get_articles(start_date.strftime('%Y-%m-%d'),end_date.strftime('%Y-%m-%d'))
