@@ -31,6 +31,7 @@ class MonteCarlo():
         request_params = StockBarsRequest(
             symbol_or_symbols=stocks,
             timeframe=TimeFrame.Day,
+            adjustment="split",
             start=start_date,
             end=end_date
             )
