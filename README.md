@@ -5,3 +5,7 @@ This project originally took the variance and average of the log returns of mult
 # Neural Networks and Sentiment Analysis
 
 Currently I am working with a friend from CS to experiment with feeding a series of embeddings of daily news embeddings and stock returns into a neural network to see if I can forecast return and variance. This would allow us to prevent the model from assuming that all events from past will carry over to the future. The model can be seen in the embeds_china_rnd branch. 
+
+Below is the model Architecture.
+
+![image](https://github.com/Collin-G/auto_trader/assets/118686914/dc43303f-ce5e-49f3-99e9-ccae4c4eb814)
